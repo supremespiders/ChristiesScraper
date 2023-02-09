@@ -13,13 +13,13 @@ namespace ChristiesScraper.Extensions
             var tasks = new List<Task<T2>>();
             var taskUrls = new Dictionary<int, string>();
             var completedUrls = new List<string>();
-            if (File.Exists("completed"))
+            if (isString && File.Exists("completed"))
             {
                 completedUrls = (await File.ReadAllLinesAsync("completed")).ToList();
                 inputs = inputs.Where(x => !completedUrls.Contains(x as string)).ToList();
             }
 
-            if (File.Exists("output"))
+            if (isString && File.Exists("output"))
             {
                 "output".Load<T2>();
             }
@@ -43,19 +43,22 @@ namespace ChristiesScraper.Extensions
                 try
                 {
                     var t = await Task.WhenAny(tasks).ConfigureAwait(false);
-                    completedUrls.Add(taskUrls[t.Id]);
-                    if (completedUrls.Count % 100 == 0)
+                    if (isString)
                     {
-                        await File.WriteAllLinesAsync("completed",completedUrls);
-                        outputs.Save("output");
+                        completedUrls.Add(taskUrls[t.Id]);
+                        if (completedUrls.Count % 100 == 0)
+                        {
+                            await File.WriteAllLinesAsync("completed",completedUrls);
+                            outputs.Save("output");
+                        }
                     }
                     tasks.Remove(t);
                     outputs.Add(await t);
                 }
-                catch (TaskCanceledException)
-                {
-                    throw;
-                }
+                // catch (TaskCanceledException)
+                // {
+                //     throw;
+                // }
                 catch (Exception e)
                 {
                     Notifier.Error($"{(e is KnownException ? e.Message : e.ToString())}");
@@ -67,8 +70,13 @@ namespace ChristiesScraper.Extensions
                 if (tasks.Count == 0 && i == inputs.Count) break;
             } while (true);
 
-            await File.WriteAllLinesAsync("completed",completedUrls);
-            outputs.Save("output");
+
+            if (isString)
+            {
+                await File.WriteAllLinesAsync("completed",completedUrls);
+                outputs.Save("output");
+            }
+           
             Notifier.Display($"Work completed, collected : {outputs.Count}");
             return outputs;
         }
